@@ -1,0 +1,27 @@
+repo_root: /zzz_new/projects/KineBench
+third_party_root: /zzz_new/projects/KineBench/third_party
+run_name: local_smoke
+output_dir: outputs
+env_id: StackCube-v1
+num_episodes: 1
+seed: 43
+fps: 17
+
+runtime:
+  control_mode: pd_ee_pose
+  sim_backend: cpu
+  action_length: 4
+  action_repeat: 1
+
+generation:
+  kind: local
+  path: examples/local_video.npy
+  target_frames: 4
+  size: [128, 128]
+
+mock_actions:
+  - [0.35, 0.0, 0.35, 0.0, 0.0, 0.0, -1.0]
+  - [0.35, 0.0, 0.30, 0.0, 0.0, 0.0, -1.0]
+  - [0.35, 0.0, 0.35, 0.0, 0.0, 0.0, 1.0]
+  - [0.35, 0.0, 0.40, 0.0, 0.0, 0.0, 1.0]
+

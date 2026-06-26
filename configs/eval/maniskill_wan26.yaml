@@ -1,0 +1,50 @@
+repo_root: /zzz_new/projects/KineBench
+third_party_root: /zzz_new/projects/KineBench/third_party
+run_name: wan26_eval
+output_dir: outputs
+env_id: StackCube-v1
+num_episodes: 1
+seed: 43
+fps: 17
+overwrite_episode: true
+add_visual_lock_prompt: true
+
+runtime:
+  control_mode: pd_ee_pose
+  sim_backend: cpu
+  action_length: 49
+  action_repeat: 4
+  bg_separate: 0.5
+
+generation:
+  kind: dashscope
+  model: wan2.6-i2v
+  size_name: 960*960
+  duration: 5
+  target_frames: 49
+  size: [384, 384]
+
+perception:
+  cad_path: /path/to/CADassets/maniskill_franka
+  yolo_weights: /path/to/yolo/best.pt
+  moge_checkpoint: /path/to/moge/checkpoint.pt
+  foundationpose_repo: /zzz_new/projects/KineBench/third_party/FoundationPose-main
+  conda_bin: /root/miniconda3/bin/conda
+  foundationpose_env: foundationpose
+  workspace_workers: 8
+  fp_workers: 8
+  yolo_imgsz: 384
+  yolo_conf: 0.15
+  fov_x: 60
+  device: cuda:0
+
+pyroki:
+  repo: /zzz_new/projects/KineBench/third_party/pyroki-main
+  conda_bin: /root/miniconda3/bin/conda
+  env_name: pyroki_new
+  manipulability_weight: 0.2
+
+gripper:
+  enabled: false
+  default: -1.0
+
