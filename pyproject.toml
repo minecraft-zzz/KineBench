@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinebench"
+version = "0.1.0"
+description = "Open-source evaluation harness for video-to-action robotic manipulation on ManiSkill."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = [
+  "numpy",
+  "Pillow",
+  "PyYAML",
+  "scipy",
+  "imageio",
+  "imageio-ffmpeg",
+  "opencv-python",
+  "torch",
+  "h5py",
+]
+
+[project.optional-dependencies]
+dashscope = ["dashscope", "requests"]
+maniskill = ["gymnasium"]
+perception = ["ultralytics"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["kinebench*"]
+

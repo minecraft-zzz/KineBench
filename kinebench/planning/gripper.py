@@ -31,12 +31,26 @@ def predict_gripper_actions(base_path: str | Path, config: dict, length: int, ba
         use_depth=bool(config.get("use_depth", False)),
     )
     actions = []
-    for _, item in sorted(res.items()):
-        pred = np.asarray(item["pred"], dtype=np.float32)[:length]
+    for workspace_name, item in sorted(res.items()):
+        pred_raw = np.asarray(item["pred"], dtype=np.float32)
+        prob_raw = np.asarray(item.get("prob", []), dtype=np.float32)
+        workspace_dir = Path(base_path) / workspace_name
+        np.save(workspace_dir / "gripper_action.npy", pred_raw)
+        if prob_raw.size:
+            np.save(workspace_dir / "gripper_action_prob.npy", prob_raw)
+
+        pred = pred_raw[:length]
         if pred.shape[0] < length:
-            pred = np.pad(pred, (0, length - pred.shape[0]), mode="edge")
+            pad_value = pred[-1] if pred.shape[0] else float(config.get("default", -1.0))
+            pred = np.pad(pred, (0, length - pred.shape[0]), mode="constant", constant_values=pad_value)
+
+        if bool(config.get("map_labels_to_actions", True)):
+            close_label = float(config.get("close_label", 1.0))
+            open_action = float(config.get("open_action", 1.0))
+            close_action = float(config.get("close_action", -1.0))
+            pred = np.where(pred == close_label, close_action, open_action).astype(np.float32)
         actions.append(pred[:, None])
-    out = np.asarray(actions)
+    out = np.asarray(actions, dtype=np.float32)
     if out.shape[0] != batch_size:
         out = out[:batch_size]
     return out

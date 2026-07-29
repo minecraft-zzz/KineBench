@@ -20,17 +20,26 @@ class VideoToPosePipeline:
     def __init__(self, config: dict):
         self.config = config
 
-    def run(self, frames: np.ndarray, workspace: str | Path, moge_model=None) -> PosePipelineResult:
+    def run(self, frames: np.ndarray, workspace: str | Path, moge_model=None, pose_transforms: dict | None = None) -> PosePipelineResult:
         cfg = self.config
         prepare_all_workspaces(workspace, frames, cfg["cad_path"], max_workers=int(cfg.get("workspace_workers", 8)), link_mesh=bool(cfg.get("link_mesh", False)))
         yolo_status = run_yolo_masks(workspace, cfg["yolo_weights"], imgsz=cfg.get("yolo_imgsz"), conf=float(cfg.get("yolo_conf", 0.15)), device=cfg.get("device"))
         if yolo_status == "yolo_failed":
-            raise RuntimeError("YOLO failed for all workspaces.")
+            raise RuntimeError("Failed to find gripper in videos")
         if moge_model is None:
             from moge.model.v2 import MoGeModel
 
             moge_model = MoGeModel.from_pretrained(cfg["moge_checkpoint"])
         moge_infer_for_basepath(moge_model, workspace, fov_x=float(cfg.get("fov_x", 60)), device=cfg.get("device"))
         run_foundationpose(workspace, cfg["foundationpose_repo"], conda_bin=cfg.get("conda_bin", "conda"), env_name=cfg.get("foundationpose_env", "foundationpose"), max_workers=int(cfg.get("fp_workers", 8)))
-        return PosePipelineResult(pose7=fp_workspaces_to_pose7(workspace), yolo_status=yolo_status)
+        pose_transforms = pose_transforms or {}
+        return PosePipelineResult(
+            pose7=fp_workspaces_to_pose7(
+                workspace,
+                world_t_camera=pose_transforms.get("world_T_camera"),
+                robot_t_world=pose_transforms.get("robot_T_world"),
+                scene_transform=pose_transforms.get("scene_transform"),
+            ),
+            yolo_status=yolo_status,
+        )
 

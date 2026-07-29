@@ -20,3 +20,13 @@ def test_local_video_generator_npy(tmp_path):
     assert out.frames.shape == (1, 3, 5, 4, 4)
     assert out.source_path == path
 
+
+
+def test_local_video_generator_takes_head_frames(tmp_path):
+    path = tmp_path / "video.npy"
+    video = np.arange(6, dtype=np.uint8).reshape(6, 1, 1, 1).repeat(3, axis=-1)
+    np.save(path, video)
+    gen = LocalVideoGenerator(path, target_frames=4, size=(1, 1))
+    out = gen.generate("prompt", np.zeros((1, 3, 1, 1), dtype=np.float32))
+    values = out.frames[0, 0, :, 0, 0]
+    np.testing.assert_allclose(values, np.array([0, 1, 2, 3], dtype=np.float32) / 255.0)

@@ -8,7 +8,12 @@ import imageio.v3 as iio
 import numpy as np
 
 
-def ensure_bcthw(video: np.ndarray, target_frames: int | None = None, size: tuple[int, int] | None = None) -> np.ndarray:
+def ensure_bcthw(
+    video: np.ndarray,
+    target_frames: int | None = None,
+    size: tuple[int, int] | None = None,
+    sampling: str = "uniform",
+) -> np.ndarray:
     arr = np.asarray(video)
     if arr.ndim == 4 and arr.shape[-1] == 3:
         arr = arr[None, ...]  # B,T,H,W,C
@@ -28,17 +33,21 @@ def ensure_bcthw(video: np.ndarray, target_frames: int | None = None, size: tupl
         w, h = size
         arr = np.stack([resize_bcthw(v[None], (w, h))[0] for v in arr], axis=0)
     if target_frames is not None:
-        arr = resample_bcthw(arr, target_frames)
+        arr = resample_bcthw(arr, target_frames, sampling=sampling)
     return arr
 
 
-def resample_bcthw(video: np.ndarray, target_frames: int) -> np.ndarray:
+def resample_bcthw(video: np.ndarray, target_frames: int, sampling: str = "uniform") -> np.ndarray:
     b, c, t, h, w = video.shape
     if t == target_frames:
         return video
     if t < target_frames:
         pad = np.repeat(video[:, :, -1:, :, :], target_frames - t, axis=2)
         return np.concatenate([video, pad], axis=2)
+    if sampling == "head":
+        return video[:, :, :target_frames, :, :]
+    if sampling != "uniform":
+        raise ValueError(f"sampling must be 'uniform' or 'head', got {sampling!r}")
     idx = np.linspace(0, t - 1, target_frames).round().astype(int)
     return video[:, :, idx, :, :]
 
@@ -54,16 +63,21 @@ def resize_bcthw(video: np.ndarray, size: tuple[int, int]) -> np.ndarray:
     return out
 
 
-def read_video(path: str | Path, target_frames: int | None = None, size: tuple[int, int] | None = None) -> np.ndarray:
+def read_video(
+    path: str | Path,
+    target_frames: int | None = None,
+    size: tuple[int, int] | None = None,
+    sampling: str = "uniform",
+) -> np.ndarray:
     path = Path(path)
     if path.suffix == ".npy":
-        return ensure_bcthw(np.load(path), target_frames=target_frames, size=size)
+        return ensure_bcthw(np.load(path), target_frames=target_frames, size=size, sampling=sampling)
     if path.suffix == ".npz":
         data = np.load(path)
         key = "video" if "video" in data else data.files[0]
-        return ensure_bcthw(data[key], target_frames=target_frames, size=size)
+        return ensure_bcthw(data[key], target_frames=target_frames, size=size, sampling=sampling)
     frames = iio.imread(path)
-    return ensure_bcthw(frames, target_frames=target_frames, size=size)
+    return ensure_bcthw(frames, target_frames=target_frames, size=size, sampling=sampling)
 
 
 def write_video(path: str | Path, frames: Iterable[np.ndarray] | np.ndarray, fps: int = 17) -> None:

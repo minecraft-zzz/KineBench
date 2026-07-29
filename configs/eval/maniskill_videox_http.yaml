@@ -1,6 +1,6 @@
 repo_root: /zzz_new/projects/KineBench
 third_party_root: /zzz_new/projects/KineBench/third_party
-run_name: wan26_eval
+run_name: videox_http_eval
 output_dir: outputs
 timestamp_outputs: true
 env_id: StackCube-v1
@@ -22,21 +22,17 @@ runtime:
 
 output:
   save_attempts: true
-  save_generated: false
+  save_generated: true
   save_h5: true
 
 generation:
-  kind: dashscope
-  # For a local VideoX HTTP service, switch to:
-  # kind: http
-  # endpoint: http://127.0.0.1:8008/generate
-  # timeout_sec: 1800
-  # extra_payload: {}
-  model: wan2.6-i2v
-  size_name: 960*960
-  duration: 5
+  kind: http
+  endpoint: http://127.0.0.1:8008/generate
+  timeout_sec: 1800
   target_frames: 49
   size: [384, 384]
+  # Optional static fields merged into every POST payload sent to the VideoX service.
+  extra_payload: {}
 
 perception:
   # Supports absolute paths or placeholders: {episode_dir}, {episode_name}.

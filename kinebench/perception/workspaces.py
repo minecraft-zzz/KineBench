@@ -118,12 +118,23 @@ def left_mult(mats: np.ndarray, transform: np.ndarray) -> np.ndarray:
     return np.asarray(transform, dtype=float).reshape(4, 4)[None] @ mats
 
 
-def fp_workspaces_to_pose7(base_path: str | Path) -> np.ndarray:
+def fp_workspaces_to_pose7(
+    base_path: str | Path,
+    world_t_camera: np.ndarray | None = None,
+    robot_t_world: np.ndarray | None = None,
+    scene_transform: np.ndarray | None = None,
+) -> np.ndarray:
+    if world_t_camera is None:
+        scene_transform = np.eye(4) if scene_transform is None else np.asarray(scene_transform, dtype=float)
+        world_t_camera = scene_transform @ MANISKILL_CAMERA_TO_EEF
+    else:
+        world_t_camera = np.asarray(world_t_camera, dtype=float)
+    robot_t_world = ROBOT_T_WORLD if robot_t_world is None else np.asarray(robot_t_world, dtype=float)
     poses = []
     for ws in sorted(Path(base_path).glob("workspace*")):
         ob_in_cam = load_poses_from_folder(ws / "FP_result" / "ob_in_cam")
-        eef_world = left_mult(ob_in_cam, MANISKILL_CAMERA_TO_EEF)
-        eef_robot = left_mult(eef_world, ROBOT_T_WORLD)
+        eef_world = left_mult(ob_in_cam, world_t_camera)
+        eef_robot = left_mult(eef_world, robot_t_world)
         q = R.from_matrix(eef_robot[:, :3, :3]).as_quat(scalar_first=True)
         poses.append(np.concatenate([eef_robot[:, :3, 3], q], axis=1))
     return np.asarray(poses)

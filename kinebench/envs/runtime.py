@@ -18,10 +18,22 @@ class RolloutResult:
 
 def add_vendor_paths(third_party_root: str | Path) -> None:
     root = Path(third_party_root)
-    for child in ("ManiSkill-main", "MoGe-main"):
-        path = root / child
+    paths = [
+        root / "ManiSkill-main",
+        root / "MoGe-main" / "utils3d-c5daf6f6c244d251f252102d09e9b7bcef791a38",
+        root / "MoGe-main",
+    ]
+    for path in reversed(paths):
         if path.exists() and str(path) not in sys.path:
             sys.path.insert(0, str(path))
+    loaded_utils3d = sys.modules.get("utils3d")
+    if loaded_utils3d is not None:
+        loaded_path = str(getattr(loaded_utils3d, "__file__", ""))
+        vendor_utils3d = str(root / "MoGe-main" / "utils3d-c5daf6f6c244d251f252102d09e9b7bcef791a38")
+        if vendor_utils3d not in loaded_path:
+            for name in list(sys.modules):
+                if name == "utils3d" or name.startswith("utils3d."):
+                    del sys.modules[name]
 
 
 def make_single_env(
@@ -35,6 +47,8 @@ def make_single_env(
     import gymnasium as gym
     import mani_skill.envs  # noqa: F401
 
+    if background_type_id is None:
+        background_type_id = [-1, -1]
     kwargs = {
         "id": env_id,
         "obs_mode": "rgb",
@@ -60,6 +74,41 @@ def _cpu_numpy(x):
         pass
     return x
 
+
+
+
+def _pose_to_matrix(pose) -> np.ndarray:
+    if hasattr(pose, "to_transformation_matrix"):
+        mat = pose.to_transformation_matrix()
+    elif hasattr(pose, "sp") and hasattr(pose.sp, "to_transformation_matrix"):
+        mat = pose.sp.to_transformation_matrix()
+    else:
+        mat = pose
+    mat = np.asarray(_cpu_numpy(mat), dtype=np.float64)
+    if mat.ndim == 3:
+        mat = mat[0]
+    if mat.shape != (4, 4):
+        raise ValueError(f"Expected pose matrix [4,4], got {mat.shape}")
+    return mat
+
+
+def env_pose_transforms(env) -> dict[str, np.ndarray]:
+    unwrapped = getattr(env, "unwrapped", env)
+    robot_pose = getattr(getattr(getattr(unwrapped, "agent", None), "robot", None), "pose", None)
+    if robot_pose is None:
+        robot_pose = getattr(unwrapped, "init_robot_pose", None)
+    if robot_pose is None:
+        return {}
+    world_t_robot = _pose_to_matrix(robot_pose)
+    out = {"robot_T_world": np.linalg.inv(world_t_robot)}
+    scene_transform = getattr(unwrapped, "scene_trans_mat", None)
+    if scene_transform is not None:
+        scene_transform = np.asarray(_cpu_numpy(scene_transform), dtype=np.float64)
+        if scene_transform.ndim == 3:
+            scene_transform = scene_transform[0]
+        if scene_transform.shape == (4, 4):
+            out["scene_transform"] = scene_transform
+    return out
 
 def rollout_actions(actions: np.ndarray, envs, repeats: int = 4) -> RolloutResult:
     actions = np.asarray(actions)
@@ -96,12 +145,28 @@ class ManiSkillRuntime:
         self.control_mode = control_mode
         self.sim_backend = sim_backend
 
-    def make_env(self, env_id: str, background: str = "Table", obj_type_id: list[int] | None = None):
-        return make_single_env(env_id=env_id, obj_type_id=obj_type_id, background=background, control_mode=self.control_mode, sim_backend=self.sim_backend)
+    def make_env(
+        self,
+        env_id: str,
+        background: str = "Table",
+        obj_type_id: list[int] | None = None,
+        background_type_id: list[int] | None = None,
+    ):
+        return make_single_env(
+            env_id=env_id,
+            obj_type_id=obj_type_id,
+            background=background,
+            background_type_id=background_type_id,
+            control_mode=self.control_mode,
+            sim_backend=self.sim_backend,
+        )
 
     def reset_rgb(self, env) -> np.ndarray:
         obs, _ = env.reset()
         return _cpu_numpy(obs["sensor_data"]["base_camera"]["rgb"])
+
+    def pose_transforms(self, env) -> dict[str, np.ndarray]:
+        return env_pose_transforms(env)
 
     def rollout(self, env, actions: np.ndarray, repeats: int = 4) -> RolloutResult:
         return rollout_actions(actions, env, repeats=repeats)

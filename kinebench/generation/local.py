@@ -15,6 +15,7 @@ class LocalVideoGenerator:
         self.path = Path(path)
         self.target_frames = target_frames
         self.size = size
+        self.sampling = "head"
 
     def generate(
         self,
@@ -25,6 +26,6 @@ class LocalVideoGenerator:
         seed: int | None = None,
     ) -> GeneratedVideo:
         path = Path(ref_video) if ref_video else self.path
-        frames = read_video(path, target_frames=self.target_frames, size=self.size).astype(np.float32)
+        frames = read_video(path, target_frames=self.target_frames, size=self.size, sampling=self.sampling).astype(np.float32)
         return GeneratedVideo(frames=frames, source_path=path, metadata={"kind": "local", "prompt": prompt, "seed": seed})
 

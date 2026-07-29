@@ -43,12 +43,24 @@ def poses_wxyz_to_xyz_euler(poses: np.ndarray) -> np.ndarray:
     return np.concatenate([p, euler], axis=1)
 
 
-def pose7_batch_to_eepose_actions(poses: np.ndarray, gripper_actions: np.ndarray, z_offset: float = 0.12) -> np.ndarray:
+def pose7_batch_to_eepose_actions(
+    poses: np.ndarray,
+    gripper_actions: np.ndarray,
+    z_offset: float = 0.12,
+    offset_frame: str = "local",
+) -> np.ndarray:
     poses = np.asarray(poses)
     if poses.ndim == 3:
         poses = poses[0]
     mats = poses7_to_T(poses)
-    mats[:, 2, 3] += z_offset
+    if offset_frame == "local":
+        offset = np.eye(4, dtype=mats.dtype)
+        offset[2, 3] = z_offset
+        mats = mats @ offset
+    elif offset_frame == "world":
+        mats[:, 2, 3] += z_offset
+    else:
+        raise ValueError(f"offset_frame must be 'local' or 'world', got {offset_frame!r}")
     pose7 = np.concatenate([mats[:, :3, 3], R.from_matrix(mats[:, :3, :3]).as_quat(scalar_first=True)], axis=1)
     euler = poses_wxyz_to_xyz_euler(pose7)
     grip = np.asarray(gripper_actions).reshape(euler.shape[0], -1)

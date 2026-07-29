@@ -1,46 +1,45 @@
 repo_root: /zzz_new/projects/KineBench
 third_party_root: /zzz_new/projects/KineBench/third_party
-run_name: wan26_eval
+run_name: fake_close_faucet_video
 output_dir: outputs
 timestamp_outputs: true
-env_id: StackCube-v1
-num_episodes: 1
+env_id: CloseFaucet-v1
+num_episodes: 5
 seed: 43
 fps: 17
 overwrite_episode: true
 add_visual_lock_prompt: true
 
 runtime:
+  # Fake generated video -> FoundationPose pose -> ManiSkill pd_ee_pose rollout.
+  # PyRoki is only used for optional manipulation cost, not for IK actions.
   control_mode: pd_ee_pose
   sim_backend: cpu
-  # background: Table  # Options: Table, RoboCasa, mixed. mixed uses bg_separate below.
   background_type_id: [-1, -1]
+  background: RoboCasa
   action_length: 250
   action_repeat: 4
   max_rollouts: 3
-  bg_separate: 0.5
+  bg_separate: 1.0
 
+# This is the fake generator. The script scripts/run_fake_video_eval.py also overrides these fields.
 output:
-  save_attempts: true
+  save_attempts: false
   save_generated: false
   save_h5: true
 
 generation:
-  kind: dashscope
-  # For a local VideoX HTTP service, switch to:
-  # kind: http
-  # endpoint: http://127.0.0.1:8008/generate
-  # timeout_sec: 1800
-  # extra_payload: {}
-  model: wan2.6-i2v
-  size_name: 960*960
-  duration: 5
+  kind: local
+  path: /data/zzz/kinebench/datasets/hf_datasets/hf_datasets_new/suite0/videos/videos/close_faucet_31/observation.images.base_camera.mp4
   target_frames: 49
   size: [384, 384]
 
+prompts:
+  CloseBox-v1: "In the following video, based on the current visual state, determine the task progress and continue to complete the remaining steps. Task: CloseBox-v1. A box is placed on its side in front of the robot arm. The box lid is open. Move the gripper to hover above the lid, then apply a gentle downward press with a slight rightward component to fold the lid shut until it is fully closed. Finish when the lid is completely closed, then retract the gripper. Do not try to open the box; do not hook under the lid to lift it; do not push in a way that re-opens the lid."
+
 perception:
   # Supports absolute paths or placeholders: {episode_dir}, {episode_name}.
-  fp_workspace: /zzz_new/projects/KineBench/tmp/fp_workspace/{episode_name}
+  fp_workspace: /zzz_new/projects/KineBench/tmp/fp_workspace_fake_close_faucet/{episode_name}
   cad_path: /zzz_new/projects/KineBench/assets/CADassets/maniskill_franka
   yolo_weights: /zzz_new/projects/KineBench/checkpoints/yolo/results/maniskill15x100/weights/best.pt
   moge_checkpoint: /zzz_new/projects/KineBench/checkpoints/MoGe/workspace/benchmark0v1/debug/checkpoint/00030000.pt
@@ -81,4 +80,3 @@ gripper:
   close_label: 0
   open_action: 1.0
   close_action: -1.0
-
